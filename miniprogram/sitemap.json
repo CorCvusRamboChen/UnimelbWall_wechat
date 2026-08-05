@@ -1,0 +1,13 @@
+{
+  "desc": "墨大墙公开帖子只读镜像",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/feed/index"
+    },
+    {
+      "action": "disallow",
+      "page": "*"
+    }
+  ]
+}

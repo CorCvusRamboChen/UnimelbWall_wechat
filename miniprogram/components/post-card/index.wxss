@@ -1,0 +1,108 @@
+.post-card {
+  margin-bottom: 20rpx;
+  padding: 28rpx;
+  border: 1rpx solid #e7ebf1;
+  border-radius: 24rpx;
+  background: #ffffff;
+  box-shadow: 0 8rpx 28rpx rgba(26, 43, 68, 0.05);
+}
+
+.post-card--pressed {
+  background: #f9fbff;
+  transform: scale(0.995);
+}
+
+.post-card__topline,
+.post-card__meta,
+.post-card__content,
+.post-card__badges {
+  display: flex;
+  align-items: center;
+}
+
+.post-card__topline {
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.post-card__badges {
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+
+.badge {
+  padding: 5rpx 14rpx;
+  border-radius: 999rpx;
+  background: #edf2f8;
+  color: #506176;
+  font-size: 22rpx;
+}
+
+.badge--pinned {
+  background: #fff1e8;
+  color: #b94b00;
+}
+
+.post-card__time {
+  flex: 0 0 auto;
+  color: #7d8b9d;
+  font-size: 23rpx;
+}
+
+.post-card__content {
+  align-items: flex-start;
+  gap: 24rpx;
+}
+
+.post-card__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.post-card__title,
+.post-card__excerpt {
+  display: block;
+}
+
+.post-card__title {
+  color: #162234;
+  font-size: 32rpx;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.post-card__excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 12rpx;
+  color: #526176;
+  font-size: 27rpx;
+  line-height: 1.65;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.post-card__thumbnail {
+  flex: 0 0 auto;
+  width: 156rpx;
+  height: 156rpx;
+  border-radius: 18rpx;
+  background: #edf1f5;
+}
+
+.post-card__meta {
+  flex-wrap: wrap;
+  margin-top: 22rpx;
+  color: #77869a;
+  font-size: 23rpx;
+}
+
+.verified {
+  margin-left: 10rpx;
+  color: #1d5fd1;
+}
+
+.dot {
+  margin: 0 12rpx;
+}

@@ -1,0 +1,8 @@
+project.private.config.json
+.env
+.env.*
+*.local.json
+secrets.json
+node_modules/
+coverage/
+.DS_Store

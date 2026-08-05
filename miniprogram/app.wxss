@@ -1,0 +1,56 @@
+page {
+  min-height: 100%;
+  background: #f5f6f8;
+  color: #182230;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 28rpx;
+}
+
+button {
+  font: inherit;
+}
+
+.page-shell {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1120rpx;
+  margin: 0 auto;
+  padding: 28rpx;
+}
+
+.muted {
+  color: #718096;
+}
+
+.status-card {
+  padding: 40rpx 28rpx;
+  border: 1rpx solid #e5e9f0;
+  border-radius: 24rpx;
+  background: #ffffff;
+  text-align: center;
+}
+
+.status-title {
+  display: block;
+  margin-bottom: 12rpx;
+  color: #26364a;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76rpx;
+  margin-top: 24rpx;
+  padding: 0 36rpx;
+  border-radius: 38rpx;
+  background: #1d5fd1;
+  color: #ffffff;
+  font-size: 28rpx;
+}
+
+.primary-button::after {
+  border: 0;
+}

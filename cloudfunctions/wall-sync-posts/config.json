@@ -1,0 +1,9 @@
+{
+  "triggers": [
+    {
+      "name": "sync-post-export-every-five-minutes",
+      "type": "timer",
+      "config": "0 */5 * * * * *"
+    }
+  ]
+}

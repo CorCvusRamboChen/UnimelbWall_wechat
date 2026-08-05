@@ -1,0 +1,13 @@
+{
+  "name": "unimelb-wall-wechat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Read-only WeChat Mini Program mirror for Unimelb Wall",
+  "scripts": {
+    "test": "node --test",
+    "check": "node scripts/check-syntax.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
