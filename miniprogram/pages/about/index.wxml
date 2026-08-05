@@ -1,0 +1,27 @@
+<view class="page-shell about-page">
+  <view class="about-card">
+    <text class="about-title">墨大墙公开帖子镜像</text>
+    <text class="about-copy">这是一个只读浏览入口。内容由服务器定时同步，暂不提供登录、发帖、评论、点赞、收藏、私信或账户功能。</text>
+
+    <view class="divider"></view>
+
+    <text class="section-title">数据状态</text>
+    <text wx:if="{{loading}}" class="about-copy">正在读取同步状态…</text>
+    <view wx:elif="{{status}}" class="status-list">
+      <view class="status-row">
+        <text>状态</text>
+        <text>{{status.status}}</text>
+      </view>
+      <view class="status-row">
+        <text>最近成功同步</text>
+        <text>{{status.last_success_at_text || '暂无记录'}}</text>
+      </view>
+    </view>
+    <text wx:else class="about-copy">暂时无法读取同步状态，帖子仍可能来自最近一次本地缓存。</text>
+
+    <view class="divider"></view>
+
+    <text class="section-title">隐私说明</text>
+    <text class="about-copy">第一版不要求微信登录，不收集发帖或互动数据。同步侧只保存公开作者投影、公开帖子和媒体元数据。</text>
+  </view>
+</view>

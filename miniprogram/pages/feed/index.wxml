@@ -1,0 +1,62 @@
+<view class="page-shell feed-page">
+  <view class="hero">
+    <view>
+      <text class="hero__eyebrow">UNIMELB WALL</text>
+      <text class="hero__title">公开帖子镜像</text>
+      <text class="hero__subtitle">只读浏览 · 数据来自最近一次成功同步</text>
+    </view>
+    <button class="about-button" bindtap="openAbout" aria-label="关于">i</button>
+  </view>
+
+  <view wx:if="{{syncStatus === 'degraded' || syncStatus === 'unhealthy'}}" class="sync-warning">
+    内容更新暂时延迟，当前展示最近一次成功同步的数据。
+  </view>
+
+  <scroll-view class="category-scroll" scroll-x="true" enhanced="true" show-scrollbar="false">
+    <view class="category-row">
+      <button
+        wx:for="{{categories}}"
+        wx:key="id"
+        class="category-pill {{selectedCategoryId === item.id ? 'category-pill--active' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onCategoryTap"
+      >{{item.name}}</button>
+    </view>
+  </scroll-view>
+
+  <view wx:if="{{lastSyncedAtText}}" class="sync-line">
+    最近同步：{{lastSyncedAtText}}
+  </view>
+
+  <view wx:if="{{initialLoading && items.length === 0}}" class="skeleton-list">
+    <view wx:for="{{[1, 2, 3]}}" wx:key="*this" class="skeleton-card">
+      <view class="skeleton skeleton--short"></view>
+      <view class="skeleton skeleton--title"></view>
+      <view class="skeleton"></view>
+      <view class="skeleton skeleton--medium"></view>
+    </view>
+  </view>
+
+  <view wx:elif="{{error && items.length === 0}}" class="status-card">
+    <text class="status-title">暂时无法加载帖子</text>
+    <text class="muted">{{error}}</text>
+    <button class="primary-button" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <view wx:elif="{{!initialLoading && items.length === 0}}" class="status-card">
+    <text class="status-title">这里暂时没有公开帖子</text>
+    <text class="muted">可以下拉刷新后再看看。</text>
+  </view>
+
+  <view wx:else class="post-list">
+    <post-card
+      wx:for="{{items}}"
+      wx:key="id"
+      post="{{item}}"
+      bind:select="onPostSelect"
+    />
+  </view>
+
+  <view wx:if="{{loadingMore}}" class="footer-state">正在加载更多…</view>
+  <view wx:elif="{{items.length > 0 && !hasMore}}" class="footer-state">已经到底了</view>
+</view>

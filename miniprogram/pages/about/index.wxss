@@ -1,0 +1,51 @@
+.about-page {
+  padding-top: 28rpx;
+}
+
+.about-card {
+  padding: 38rpx;
+  border: 1rpx solid #e5e9ef;
+  border-radius: 28rpx;
+  background: #ffffff;
+}
+
+.about-title,
+.section-title,
+.about-copy {
+  display: block;
+}
+
+.about-title {
+  color: #17263a;
+  font-size: 40rpx;
+  font-weight: 700;
+}
+
+.section-title {
+  margin-bottom: 14rpx;
+  color: #26374d;
+  font-size: 29rpx;
+  font-weight: 650;
+}
+
+.about-copy {
+  margin-top: 18rpx;
+  color: #5d6b7c;
+  font-size: 27rpx;
+  line-height: 1.75;
+}
+
+.divider {
+  height: 1rpx;
+  margin: 34rpx 0;
+  background: #edf0f4;
+}
+
+.status-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 14rpx 0;
+  color: #5d6b7c;
+  font-size: 26rpx;
+}

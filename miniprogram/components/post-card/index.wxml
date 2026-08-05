@@ -1,0 +1,30 @@
+<view class="post-card" bindtap="handleTap" hover-class="post-card--pressed">
+  <view class="post-card__topline">
+    <view class="post-card__badges">
+      <text wx:if="{{post.is_pinned}}" class="badge badge--pinned">置顶</text>
+      <text class="badge">{{post.category.name || '未分类'}}</text>
+    </view>
+    <text class="post-card__time">{{post.published_at_text}}</text>
+  </view>
+
+  <view class="post-card__content">
+    <view class="post-card__copy">
+      <text class="post-card__title">{{post.title || '无标题帖子'}}</text>
+      <text wx:if="{{post.excerpt}}" class="post-card__excerpt">{{post.excerpt}}</text>
+    </view>
+    <image
+      wx:if="{{post.thumbnail_file_id}}"
+      class="post-card__thumbnail"
+      src="{{post.thumbnail_file_id}}"
+      mode="aspectFill"
+      lazy-load="true"
+    />
+  </view>
+
+  <view class="post-card__meta">
+    <text>{{post.author.display_name || '匿名用户'}}</text>
+    <text wx:if="{{post.author.verified}}" class="verified">已认证</text>
+    <text class="dot">·</text>
+    <text>{{post.comment_count || 0}} 条评论</text>
+  </view>
+</view>

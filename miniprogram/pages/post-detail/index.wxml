@@ -1,0 +1,49 @@
+<view class="page-shell detail-page">
+  <view wx:if="{{loading && !post}}" class="detail-card loading-card">
+    <view class="loading-line loading-line--short"></view>
+    <view class="loading-line loading-line--title"></view>
+    <view class="loading-line"></view>
+    <view class="loading-line"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="status-card">
+    <text class="status-title">{{error}}</text>
+    <button class="primary-button" bindtap="onRetry">重新加载</button>
+  </view>
+
+  <view wx:elif="{{post}}" class="detail-card">
+    <view class="detail-badges">
+      <text wx:if="{{post.is_pinned}}" class="detail-badge detail-badge--pinned">置顶</text>
+      <text class="detail-badge">{{post.category.name || '未分类'}}</text>
+    </view>
+
+    <text class="detail-title">{{post.title || '无标题帖子'}}</text>
+    <view class="detail-meta">
+      <text>{{post.author.display_name || '匿名用户'}}</text>
+      <text wx:if="{{post.author.verified}}" class="verified">已认证</text>
+      <text class="dot">·</text>
+      <text>{{post.published_at_text}}</text>
+      <text class="dot">·</text>
+      <text>{{post.comment_count || 0}} 条评论</text>
+    </view>
+
+    <text class="post-body" user-select="true">{{post.body}}</text>
+
+    <view wx:if="{{post.images.length}}" class="image-grid">
+      <image
+        wx:for="{{post.images}}"
+        wx:key="file_id"
+        class="post-image {{post.images.length === 1 ? 'post-image--single' : ''}}"
+        src="{{item.file_id}}"
+        mode="aspectFill"
+        lazy-load="true"
+        data-file-id="{{item.file_id}}"
+        bindtap="previewImage"
+      />
+    </view>
+
+    <view wx:if="{{post.updated_at_text}}" class="updated-line">
+      最近更新：{{post.updated_at_text}}
+    </view>
+  </view>
+</view>
