@@ -1,6 +1,12 @@
 <view class="page-shell detail-page">
-  <view wx:if="{{loading && !post}}" class="detail-card loading-card">
-    <view class="loading-line loading-line--short"></view>
+  <view wx:if="{{loading && !post}}" class="detail-surface loading-card" aria-label="正在加载帖子详情">
+    <view class="loading-author">
+      <view class="loading-line loading-line--avatar"></view>
+      <view class="loading-author__copy">
+        <view class="loading-line loading-line--short"></view>
+        <view class="loading-line loading-line--meta"></view>
+      </view>
+    </view>
     <view class="loading-line loading-line--title"></view>
     <view class="loading-line"></view>
     <view class="loading-line"></view>
@@ -8,30 +14,38 @@
 
   <view wx:elif="{{error}}" class="status-card">
     <text class="status-title">{{error}}</text>
+    <text class="muted">可以检查网络后重新加载。</text>
     <button class="primary-button" bindtap="onRetry">重新加载</button>
   </view>
 
-  <view wx:elif="{{post}}" class="detail-card">
-    <view class="detail-badges">
-      <text wx:if="{{post.is_pinned}}" class="detail-badge detail-badge--pinned">置顶</text>
-      <text class="detail-badge">{{post.category.name || '未分类'}}</text>
-      <text wx:if="{{post.is_anonymous}}" class="detail-badge detail-badge--anonymous">匿名发布</text>
-      <text wx:if="{{post.has_video}}" class="detail-badge detail-badge--video">含视频</text>
+  <view wx:elif="{{post}}" class="detail-surface">
+    <view class="detail-author">
+      <view class="detail-avatar {{post.is_anonymous ? 'detail-avatar--anonymous' : ''}}" aria-hidden="true">
+        {{post.author_initial}}
+      </view>
+      <view class="detail-author__copy">
+        <view class="detail-author__line">
+          <text class="detail-author__name">{{post.is_anonymous ? '匿名用户' : (post.author.display_name || '匿名用户')}}</text>
+          <text wx:if="{{!post.is_anonymous && post.author.verified}}" class="verified-label">已认证</text>
+        </view>
+        <view class="detail-context">
+          <text>{{post.category.name || '未分类'}}</text>
+          <text class="context-separator">·</text>
+          <text>{{post.published_at_text}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{post.is_pinned || post.is_anonymous || post.has_video}}" class="detail-flags">
+      <text wx:if="{{post.is_pinned}}" class="detail-flag detail-flag--pinned">置顶</text>
+      <text wx:if="{{post.is_anonymous}}" class="detail-flag">匿名发布</text>
+      <text wx:if="{{post.has_video}}" class="detail-flag detail-flag--video">包含视频</text>
     </view>
 
     <text class="detail-title">{{post.title || '无标题帖子'}}</text>
-    <view class="detail-meta">
-      <text>{{post.is_anonymous ? '匿名用户' : (post.author.display_name || '匿名用户')}}</text>
-      <text wx:if="{{!post.is_anonymous && post.author.verified}}" class="verified">已认证</text>
-      <text class="dot">·</text>
-      <text>{{post.published_at_text}}</text>
-      <text class="dot">·</text>
-      <text>{{post.comment_count || 0}} 条评论</text>
-    </view>
-
     <text class="post-body" user-select="true">{{post.body}}</text>
 
-    <view wx:if="{{post.has_video && post.media.length}}" class="media-list">
+    <view wx:if="{{post.media.length}}" class="media-list" aria-label="帖子媒体">
       <block wx:for="{{post.media}}" wx:key="id">
         <video
           wx:if="{{item.type === 'video'}}"
@@ -46,25 +60,18 @@
           wx:else
           class="post-media-image"
           src="{{item.file_id}}"
-          mode="aspectFill"
+          mode="widthFix"
           lazy-load="true"
+          aria-label="{{item.alt || '帖子图片'}}"
           data-file-id="{{item.file_id}}"
           bindtap="previewImage"
         />
       </block>
     </view>
 
-    <view wx:elif="{{post.images.length}}" class="image-grid">
-      <image
-        wx:for="{{post.images}}"
-        wx:key="file_id"
-        class="post-image {{post.images.length === 1 ? 'post-image--single' : ''}}"
-        src="{{item.file_id}}"
-        mode="aspectFill"
-        lazy-load="true"
-        data-file-id="{{item.file_id}}"
-        bindtap="previewImage"
-      />
+    <view class="readonly-note">
+      <text class="readonly-note__title">原帖共有 {{post.comment_count || 0}} 条评论</text>
+      <text class="readonly-note__copy">当前版本仅提供公开帖子内容的只读浏览，暂不展示或参与互动。</text>
     </view>
 
     <view wx:if="{{post.updated_at_text}}" class="updated-line">

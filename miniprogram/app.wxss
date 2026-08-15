@@ -1,7 +1,7 @@
 page {
   min-height: 100%;
-  background: #f5f6f8;
-  color: #182230;
+  background: #f5f7fb;
+  color: #20242c;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 28rpx;
 }
@@ -15,17 +15,17 @@ button {
   width: 100%;
   max-width: 1120rpx;
   margin: 0 auto;
-  padding: 28rpx;
+  padding: 24rpx;
 }
 
 .muted {
-  color: #718096;
+  color: #687082;
 }
 
 .status-card {
-  padding: 40rpx 28rpx;
-  border: 1rpx solid #e5e9f0;
-  border-radius: 24rpx;
+  padding: 48rpx 32rpx;
+  border: 1rpx solid #e4e8ef;
+  border-radius: 16rpx;
   background: #ffffff;
   text-align: center;
 }
@@ -33,24 +33,30 @@ button {
 .status-title {
   display: block;
   margin-bottom: 12rpx;
-  color: #26364a;
-  font-size: 30rpx;
-  font-weight: 600;
+  color: #20242c;
+  font-size: 32rpx;
+  font-weight: 700;
 }
 
 .primary-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 76rpx;
+  min-height: 88rpx;
   margin-top: 24rpx;
-  padding: 0 36rpx;
-  border-radius: 38rpx;
-  background: #1d5fd1;
+  padding: 0 40rpx;
+  border-radius: 8rpx;
+  background: #000b34;
   color: #ffffff;
   font-size: 28rpx;
+  font-weight: 700;
 }
 
 .primary-button::after {
   border: 0;
+}
+
+.primary-button.button-hover {
+  background: #000927;
+  opacity: 0.92;
 }

@@ -2,6 +2,15 @@ const wallApi = require("../../services/wall-api");
 const cache = require("../../services/cache");
 const { formatDate } = require("../../utils/date");
 
+function authorInitial(post) {
+  if (!post || post.is_anonymous) {
+    return "匿";
+  }
+
+  const name = post.author && post.author.display_name || "墨";
+  return Array.from(String(name).trim())[0] || "墨";
+}
+
 function decoratePost(post) {
   if (!post) {
     return null;
@@ -19,6 +28,7 @@ function decoratePost(post) {
 
   return {
     ...post,
+    author_initial: authorInitial(post),
     media,
     images: media.filter((item) => item.type !== "video"),
     published_at_text: formatDate(post.published_at),

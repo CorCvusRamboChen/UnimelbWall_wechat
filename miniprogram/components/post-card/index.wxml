@@ -1,32 +1,53 @@
-<view class="post-card" bindtap="handleTap" hover-class="post-card--pressed">
-  <view class="post-card__topline">
-    <view class="post-card__badges">
-      <text wx:if="{{post.is_pinned}}" class="badge badge--pinned">置顶</text>
-      <text class="badge">{{post.category.name || '未分类'}}</text>
-      <text wx:if="{{post.is_anonymous}}" class="badge badge--anonymous">匿名发布</text>
-      <text wx:if="{{post.has_video}}" class="badge badge--video">含视频</text>
+<button
+  class="post-card {{post.is_anonymous ? 'post-card--anonymous' : ''}}"
+  bindtap="handleTap"
+  hover-class="post-card--pressed"
+  aria-label="查看帖子：{{post.title || '无标题帖子'}}"
+>
+  <view class="post-card__header">
+    <view class="author-avatar {{post.is_anonymous ? 'author-avatar--anonymous' : ''}}" aria-hidden="true">
+      {{post.author_initial || (post.is_anonymous ? '匿' : '墨')}}
     </view>
-    <text class="post-card__time">{{post.published_at_text}}</text>
+    <view class="author-copy">
+      <view class="author-line">
+        <text class="author-name">{{post.is_anonymous ? '匿名用户' : (post.author.display_name || '匿名用户')}}</text>
+        <text wx:if="{{!post.is_anonymous && post.author.verified}}" class="verified-label">已认证</text>
+      </view>
+      <view class="context-line">
+        <text>{{post.category.name || '未分类'}}</text>
+        <text class="context-separator">·</text>
+        <text>{{post.published_at_text}}</text>
+      </view>
+    </view>
   </view>
 
-  <view class="post-card__content">
-    <view class="post-card__copy">
-      <text class="post-card__title">{{post.title || '无标题帖子'}}</text>
-      <text wx:if="{{post.excerpt}}" class="post-card__excerpt">{{post.excerpt}}</text>
-    </view>
+  <view wx:if="{{post.is_pinned || post.is_anonymous || post.has_video}}" class="post-flags">
+    <text wx:if="{{post.is_pinned}}" class="flag flag--pinned">置顶</text>
+    <text wx:if="{{post.is_anonymous}}" class="flag">匿名</text>
+    <text wx:if="{{post.has_video}}" class="flag flag--video">视频</text>
+  </view>
+
+  <text class="post-card__title">{{post.title || '无标题帖子'}}</text>
+  <text wx:if="{{post.excerpt}}" class="post-card__excerpt">{{post.excerpt}}</text>
+
+  <view wx:if="{{post.thumbnail_file_id}}" class="media-preview">
     <image
-      wx:if="{{post.thumbnail_file_id}}"
-      class="post-card__thumbnail"
+      class="media-preview__image"
       src="{{post.thumbnail_file_id}}"
       mode="aspectFill"
       lazy-load="true"
+      aria-label="帖子图片预览"
     />
+    <text wx:if="{{post.has_video}}" class="media-preview__label">包含视频</text>
   </view>
 
-  <view class="post-card__meta">
-    <text>{{post.is_anonymous ? '匿名用户' : (post.author.display_name || '匿名用户')}}</text>
-    <text wx:if="{{!post.is_anonymous && post.author.verified}}" class="verified">已认证</text>
-    <text class="dot">·</text>
-    <text>{{post.comment_count || 0}} 条评论</text>
+  <view wx:elif="{{post.has_video}}" class="video-preview">
+    <view class="video-preview__play" aria-hidden="true"><view class="video-preview__triangle"></view></view>
+    <text>视频内容</text>
   </view>
-</view>
+
+  <view class="post-card__footer">
+    <text>{{post.comment_count || 0}} 条评论</text>
+    <text class="read-more">查看全文</text>
+  </view>
+</button>
