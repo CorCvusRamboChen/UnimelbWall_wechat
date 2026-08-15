@@ -67,6 +67,7 @@
     <post-card
       wx:for="{{items}}"
       wx:key="id"
+      class="post-card-host"
       post="{{item}}"
       bind:select="onPostSelect"
     />
