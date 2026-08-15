@@ -5,10 +5,10 @@
     "pages/about/index"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#ffffff",
-    "navigationBarTextStyle": "black",
+    "navigationBarBackgroundColor": "#000b34",
+    "navigationBarTextStyle": "white",
     "navigationBarTitleText": "墨大墙",
-    "backgroundColor": "#f5f6f8",
+    "backgroundColor": "#f5f7fb",
     "backgroundTextStyle": "dark"
   },
   "style": "v2",
