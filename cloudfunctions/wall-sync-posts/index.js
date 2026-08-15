@@ -53,7 +53,10 @@ exports.main = async () => {
     runStarted = true;
 
     for (let pageNumber = 0; pageNumber < config.maxPages; pageNumber += 1) {
-      const page = await sourceClient.fetchPage(totals.cursor);
+      const page = await sourceClient.fetchPage(
+        totals.cursor,
+        `${runId}.${pageNumber + 1}`
+      );
       const counts = await repository.applyPage(page.changes);
       await repository.checkpoint(
         page,

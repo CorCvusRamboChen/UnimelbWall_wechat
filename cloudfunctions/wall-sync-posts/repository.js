@@ -196,7 +196,7 @@ function createRepository(db) {
     });
   }
 
-  async function refreshPostImages(postId) {
+  async function refreshPostMedia(postId) {
     if (!postId) {
       return;
     }
@@ -207,10 +207,11 @@ function createRepository(db) {
       .orderBy("_id", "asc")
       .limit(100)
       .get();
-    const images = result.data
+    const mirroredMedia = result.data
       .filter((item) => item.mirror_file_id)
       .map((item) => ({
         source_id: item._id,
+        type: item.type === "video" ? "video" : "image",
         file_id: item.mirror_file_id,
         width: Number(item.width) || null,
         height: Number(item.height) || null,
@@ -218,7 +219,10 @@ function createRepository(db) {
         position: Number(item.position) || 0
       }));
 
-    await collections.posts.doc(postId).update({ data: { images } });
+    const images = mirroredMedia.filter((item) => item.type === "image");
+    await collections.posts.doc(postId).update({
+      data: { media: mirroredMedia, images }
+    });
   }
 
   async function applyBoard(change) {
@@ -313,18 +317,19 @@ function createRepository(db) {
       });
     }
 
+    const isAnonymous = change.data.isAnonymous === true;
     const [board, author] = await Promise.all([
       change.data.boardId
         ? optionalDocument(collections.boards, String(change.data.boardId))
         : null,
-      change.data.authorId
+      !isAnonymous && change.data.authorId
         ? optionalDocument(collections.authors, String(change.data.authorId))
         : null
     ]);
     const post = projectPost(change.data, { board, author }, change.seq, existing || {});
     const { _id, ...postData } = post;
     await collections.posts.doc(_id).set({ data: postData });
-    await refreshPostImages(_id);
+    await refreshPostMedia(_id);
     return "applied";
   }
 
@@ -340,7 +345,7 @@ function createRepository(db) {
     if (change.operation === "delete") {
       await collections.media.doc(change.entityId).remove();
       await collections.jobs.doc(change.entityId).remove();
-      await refreshPostImages(postId);
+      await refreshPostMedia(postId);
       return "applied";
     }
 
@@ -352,16 +357,28 @@ function createRepository(db) {
       });
     }
 
+    const mediaType = String(data.type || "image");
+
+    if (!(["image", "video"].includes(mediaType))) {
+      throw new SyncError("SOURCE_SCHEMA_UNSUPPORTED", "Unsupported media type", {
+        retryable: false
+      });
+    }
+
     const sourceUrl = String(data.url);
+    const sourceUrlHash = crypto.createHash("sha256")
+      .update(`${mediaType}\u0000${sourceUrl}`)
+      .digest("hex");
     const unchangedReady = existing
       && existing.source_url === sourceUrl
+      && existing.type === mediaType
       && existing.asset_status === "ready"
       && existing.mirror_file_id;
     const media = {
       post_id: String(data.postId),
-      type: String(data.type || "image"),
+      type: mediaType,
       source_url: sourceUrl,
-      source_url_hash: crypto.createHash("sha256").update(sourceUrl).digest("hex"),
+      source_url_hash: sourceUrlHash,
       width: Number(data.width) || null,
       height: Number(data.height) || null,
       alt: String(data.alt || ""),
@@ -378,6 +395,7 @@ function createRepository(db) {
         data: {
           post_id: media.post_id,
           media_id: change.entityId,
+          media_type: mediaType,
           source_url: sourceUrl,
           source_url_hash: media.source_url_hash,
           status: "pending",
@@ -390,7 +408,7 @@ function createRepository(db) {
       });
     }
 
-    await refreshPostImages(media.post_id);
+    await refreshPostMedia(media.post_id);
     return "applied";
   }
 
@@ -437,7 +455,7 @@ function createRepository(db) {
     markSuccess,
     markFailure,
     applyPage,
-    refreshPostImages
+    refreshPostMedia
   };
 }
 

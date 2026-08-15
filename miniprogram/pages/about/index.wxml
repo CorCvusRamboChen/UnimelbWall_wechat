@@ -22,6 +22,6 @@
     <view class="divider"></view>
 
     <text class="section-title">隐私说明</text>
-    <text class="about-copy">第一版不要求微信登录，不收集发帖或互动数据。同步侧只保存公开作者投影、公开帖子和媒体元数据。</text>
+    <text class="about-copy">第一版不要求微信登录，不收集发帖或互动数据。同步侧只保存公开作者投影、公开帖子和媒体元数据；匿名帖不会展示作者身份、头像或认证标记，图片和视频只从受信任的云端镜像加载。</text>
   </view>
 </view>

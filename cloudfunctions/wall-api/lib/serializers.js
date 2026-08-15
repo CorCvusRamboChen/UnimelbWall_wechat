@@ -8,10 +8,36 @@ function isoDate(value) {
 }
 
 function publicAuthor(post) {
+  if (post.is_anonymous === true) {
+    return {
+      display_name: "匿名用户",
+      verified: false
+    };
+  }
+
   return {
     display_name: post.author && post.author.display_name || "匿名用户",
     verified: Boolean(post.author && post.author.verified)
   };
+}
+
+function publicMedia(post) {
+  const source = Array.isArray(post.media)
+    ? post.media
+    : (Array.isArray(post.images)
+      ? post.images.map((item) => ({ ...item, type: "image" }))
+      : []);
+
+  return source
+    .filter((item) => item && item.file_id)
+    .map((item) => ({
+      id: item.source_id || item.file_id,
+      type: item.type === "video" ? "video" : "image",
+      file_id: item.file_id,
+      width: Number(item.width) || null,
+      height: Number(item.height) || null,
+      alt: item.alt || ""
+    }));
 }
 
 function publicCategory(post) {
@@ -22,7 +48,8 @@ function publicCategory(post) {
 }
 
 function listPost(post) {
-  const images = Array.isArray(post.images) ? post.images : [];
+  const media = publicMedia(post);
+  const images = media.filter((item) => item.type === "image");
   const thumbnail = images.find((image) => image && image.file_id);
 
   return {
@@ -31,7 +58,9 @@ function listPost(post) {
     excerpt: post.excerpt || "",
     category: publicCategory(post),
     author: publicAuthor(post),
+    is_anonymous: post.is_anonymous === true,
     is_pinned: post.pin_rank === 1,
+    has_video: media.some((item) => item.type === "video"),
     comment_count: Number(post.comment_count) || 0,
     thumbnail_file_id: thumbnail ? thumbnail.file_id : null,
     published_at: isoDate(post.published_at)
@@ -39,21 +68,17 @@ function listPost(post) {
 }
 
 function detailPost(post) {
+  const media = publicMedia(post);
+
   return {
     ...listPost(post),
     body_format: "plain_text",
     body: post.body || "",
-    images: (Array.isArray(post.images) ? post.images : [])
-      .filter((image) => image && image.file_id)
-      .map((image) => ({
-        file_id: image.file_id,
-        width: Number(image.width) || null,
-        height: Number(image.height) || null,
-        alt: image.alt || ""
-      })),
+    media,
+    images: media.filter((item) => item.type === "image"),
     updated_at: isoDate(post.source_updated_at),
     content_version: post.source_last_seq || "0"
   };
 }
 
-module.exports = { isoDate, listPost, detailPost };
+module.exports = { isoDate, publicMedia, listPost, detailPost };

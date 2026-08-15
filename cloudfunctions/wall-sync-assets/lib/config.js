@@ -10,6 +10,14 @@ function integer(name, fallback, minimum, maximum) {
   return value;
 }
 
+function compatibleInteger(name, legacyName, fallback, minimum, maximum) {
+  if (process.env[name] !== undefined) {
+    return integer(name, fallback, minimum, maximum);
+  }
+
+  return integer(legacyName, fallback, minimum, maximum);
+}
+
 function loadConfig() {
   const allowedHosts = String(process.env.SOURCE_MEDIA_HOSTS || "")
     .split(",")
@@ -24,10 +32,22 @@ function loadConfig() {
 
   return {
     allowedHosts,
-    batchSize: integer("IMAGE_BATCH_SIZE", 5, 1, 20),
-    timeoutMs: integer("IMAGE_DOWNLOAD_TIMEOUT_MS", 15000, 1000, 60000),
-    maxBytes: integer("IMAGE_MAX_BYTES", 10 * 1024 * 1024, 1024, 20 * 1024 * 1024),
-    maxAttempts: integer("IMAGE_MAX_ATTEMPTS", 5, 1, 20)
+    batchSize: compatibleInteger("MEDIA_BATCH_SIZE", "IMAGE_BATCH_SIZE", 5, 1, 20),
+    timeoutMs: compatibleInteger(
+      "MEDIA_DOWNLOAD_TIMEOUT_MS",
+      "IMAGE_DOWNLOAD_TIMEOUT_MS",
+      15000,
+      1000,
+      60000
+    ),
+    maxBytes: compatibleInteger(
+      "MEDIA_MAX_BYTES",
+      "IMAGE_MAX_BYTES",
+      25 * 1024 * 1024,
+      1024,
+      100 * 1024 * 1024
+    ),
+    maxAttempts: compatibleInteger("MEDIA_MAX_ATTEMPTS", "IMAGE_MAX_ATTEMPTS", 5, 1, 20)
   };
 }
 

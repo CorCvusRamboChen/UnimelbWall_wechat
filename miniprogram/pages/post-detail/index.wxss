@@ -30,6 +30,16 @@
   color: #b94b00;
 }
 
+.detail-badge--anonymous {
+  background: #f1edff;
+  color: #6645a3;
+}
+
+.detail-badge--video {
+  background: #e9f5ff;
+  color: #17629b;
+}
+
 .detail-title {
   display: block;
   margin-top: 24rpx;
@@ -84,6 +94,28 @@
 .post-image--single {
   width: 100%;
   height: 620rpx;
+}
+
+.video-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 34rpx;
+}
+
+.post-video {
+  width: 100%;
+  height: 420rpx;
+  overflow: hidden;
+  border-radius: 16rpx;
+  background: #10151d;
+}
+
+.post-media-image {
+  width: 100%;
+  height: 620rpx;
+  border-radius: 16rpx;
+  background: #eef1f5;
 }
 
 .updated-line {

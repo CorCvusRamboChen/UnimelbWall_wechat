@@ -3,6 +3,8 @@
     <view class="post-card__badges">
       <text wx:if="{{post.is_pinned}}" class="badge badge--pinned">置顶</text>
       <text class="badge">{{post.category.name || '未分类'}}</text>
+      <text wx:if="{{post.is_anonymous}}" class="badge badge--anonymous">匿名发布</text>
+      <text wx:if="{{post.has_video}}" class="badge badge--video">含视频</text>
     </view>
     <text class="post-card__time">{{post.published_at_text}}</text>
   </view>
@@ -22,8 +24,8 @@
   </view>
 
   <view class="post-card__meta">
-    <text>{{post.author.display_name || '匿名用户'}}</text>
-    <text wx:if="{{post.author.verified}}" class="verified">已认证</text>
+    <text>{{post.is_anonymous ? '匿名用户' : (post.author.display_name || '匿名用户')}}</text>
+    <text wx:if="{{!post.is_anonymous && post.author.verified}}" class="verified">已认证</text>
     <text class="dot">·</text>
     <text>{{post.comment_count || 0}} 条评论</text>
   </view>

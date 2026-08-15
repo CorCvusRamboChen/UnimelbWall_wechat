@@ -35,7 +35,7 @@ function createRepository(db) {
     });
   }
 
-  async function refreshPostImages(postId) {
+  async function refreshPostMedia(postId) {
     if (!postId) return;
     const result = await media
       .where({ post_id: postId, asset_status: "ready" })
@@ -43,10 +43,11 @@ function createRepository(db) {
       .orderBy("_id", "asc")
       .limit(100)
       .get();
-    const images = result.data
+    const mirroredMedia = result.data
       .filter((item) => item.mirror_file_id)
       .map((item) => ({
         source_id: item._id,
+        type: item.type === "video" ? "video" : "image",
         file_id: item.mirror_file_id,
         width: Number(item.width) || null,
         height: Number(item.height) || null,
@@ -54,7 +55,10 @@ function createRepository(db) {
         position: Number(item.position) || 0
       }));
 
-    await posts.doc(postId).update({ data: { images } });
+    const images = mirroredMedia.filter((item) => item.type === "image");
+    await posts.doc(postId).update({
+      data: { media: mirroredMedia, images }
+    });
   }
 
   async function completeJob(job, fileId) {
@@ -78,7 +82,10 @@ function createRepository(db) {
       return false;
     }
 
-    if (!mediaRecord.data || mediaRecord.data.source_url_hash !== job.source_url_hash) {
+    const jobMediaType = job.media_type || "image";
+    if (!mediaRecord.data
+        || mediaRecord.data.source_url_hash !== job.source_url_hash
+        || mediaRecord.data.type !== jobMediaType) {
       return false;
     }
 
@@ -97,7 +104,7 @@ function createRepository(db) {
         last_error_code: null
       }
     });
-    await refreshPostImages(job.post_id);
+    await refreshPostMedia(job.post_id);
     return true;
   }
 
@@ -112,7 +119,7 @@ function createRepository(db) {
         attempts,
         next_attempt_at: new Date(Date.now() + delaySeconds * 1000),
         updated_at: new Date(),
-        last_error_code: error && error.code || "IMAGE_DOWNLOAD_FAILED"
+        last_error_code: error && error.code || "MEDIA_DOWNLOAD_FAILED"
       }
     });
     await media.doc(job.media_id).update({

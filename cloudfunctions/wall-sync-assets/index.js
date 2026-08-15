@@ -1,6 +1,6 @@
 const cloud = require("wx-server-sdk");
 const { loadConfig } = require("./lib/config");
-const { downloadImage } = require("./lib/download");
+const { downloadAsset } = require("./lib/download");
 const { createRepository } = require("./repository");
 
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV });
@@ -22,15 +22,15 @@ exports.main = async () => {
     if (!job) continue;
 
     try {
-      const image = await downloadImage(job.source_url, config);
+      const asset = await downloadAsset(job.source_url, job.media_type || "image", config);
       const cloudPath = [
         "wall-posts",
         safePathPart(job.post_id),
-        `${safePathPart(job.media_id)}-${job.source_url_hash.slice(0, 12)}.${image.extension}`
+        `${safePathPart(job.media_id)}-${job.source_url_hash.slice(0, 12)}.${asset.extension}`
       ].join("/");
       const upload = await cloud.uploadFile({
         cloudPath,
-        fileContent: image.buffer
+        fileContent: asset.buffer
       });
       const applied = await repository.completeJob(job, upload.fileID);
 
@@ -40,7 +40,7 @@ exports.main = async () => {
       counts.failed += 1;
       console.error("asset mirror failed", {
         mediaId: job.media_id,
-        code: error && error.code || "IMAGE_DOWNLOAD_FAILED",
+        code: error && error.code || "MEDIA_DOWNLOAD_FAILED",
         message: error && error.message
       });
       try {
