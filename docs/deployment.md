@@ -47,11 +47,13 @@ SOURCE_TIMEOUT_MS=15000
 
 ```text
 SOURCE_MEDIA_HOSTS=<host-a>,<host-b>
-IMAGE_BATCH_SIZE=5
-IMAGE_DOWNLOAD_TIMEOUT_MS=15000
-IMAGE_MAX_BYTES=10485760
-IMAGE_MAX_ATTEMPTS=5
+MEDIA_BATCH_SIZE=5
+MEDIA_DOWNLOAD_TIMEOUT_MS=15000
+MEDIA_MAX_BYTES=26214400
+MEDIA_MAX_ATTEMPTS=5
 ```
+
+`MEDIA_MAX_BYTES` 默认 25 MiB，用于容纳母项目已经使用的 MP4；允许的最大配置为 100 MiB。`SOURCE_MEDIA_HOSTS` 通常只加入母项目重新托管媒体所使用的 Storage/API 主机，不要直接放行小红书、抖音等第三方 CDN。旧版 `IMAGE_BATCH_SIZE`、`IMAGE_DOWNLOAD_TIMEOUT_MS`、`IMAGE_MAX_BYTES`、`IMAGE_MAX_ATTEMPTS` 仍可作为兼容回退，但新部署应使用 `MEDIA_*` 名称。
 
 不要把任何真实值写入仓库。
 
@@ -82,12 +84,12 @@ CloudBase 函数安全规则建议：
 
 ## 6. 首次上线顺序
 
-1. 主站先合并并部署 PR #9：应用 `0018_post_export_api.sql`，配置稳定的 Token 和 Source ID，部署 `export-posts`。
+1. 主站 PR #9 已合并；部署时应用 `0033_post_export_api.sql`，配置稳定的 Token 和 Source ID，并部署 `export-posts`。
 2. 在开发 CloudBase 环境创建集合和索引。
 3. 上传 `wall-api`，用三条手工帖子验证列表和详情。
 4. 配置并手动运行 `wall-sync-posts`，从起点完成初始化。
-5. 配置媒体主机白名单并运行 `wall-sync-assets`。
-6. 验证隐藏、软删除、物理删除、重复消费和 Token 错误。
+5. 配置媒体主机白名单并运行 `wall-sync-assets`，分别抽样验证图片与 MP4。
+6. 验证匿名作者脱敏、隐藏、软删除、物理删除、重复消费和 Token 错误。
 7. 开启定时触发器，再迁移同样配置到生产环境。
 
 ## 7. 发布前验证
@@ -97,4 +99,18 @@ npm test
 npm run check
 ```
 
-还必须在微信开发者工具和真机上验证首屏、下拉刷新、触底分页、详情长文本、图片预览、弱网和源站不可用时保留旧数据。
+还必须在微信开发者工具和真机上验证首屏、下拉刷新、触底分页、匿名标识、详情长文本、图片预览、视频播放、弱网和源站不可用时保留旧数据。
+
+## 8. 从旧版图片镜像升级
+
+如果旧版函数已经推进过同步游标，历史帖子不会仅因部署新代码而自动重新投影。也不要只把现有 `wall_sync_state.cursor` 改回起点：实体上的 `source_last_seq` 会把相同或更旧事件视为幂等重放并跳过。
+
+生产环境推荐使用蓝绿升级：
+
+1. 新建一套隔离的 CloudBase 环境或带新前缀的镜像集合。
+2. 部署新函数并从游标起点完成全量回填。
+3. 抽样确认历史匿名帖已经脱敏，历史视频已经镜像并可播放。
+4. 暂停旧环境触发器，切换小程序环境 ID，再启用新环境触发器。
+5. 保留旧环境用于短期回滚，确认稳定后再按数据保留策略处理。
+
+尚未运行过首次同步的新环境不需要执行迁移步骤。

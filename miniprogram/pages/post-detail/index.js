@@ -7,8 +7,20 @@ function decoratePost(post) {
     return null;
   }
 
+  const rawMedia = Array.isArray(post.media)
+    ? post.media
+    : (Array.isArray(post.images)
+      ? post.images.map((item) => ({ ...item, type: "image" }))
+      : []);
+  const media = rawMedia.map((item, index) => ({
+    ...item,
+    id: item.id || item.source_id || item.file_id || String(index)
+  }));
+
   return {
     ...post,
+    media,
+    images: media.filter((item) => item.type !== "video"),
     published_at_text: formatDate(post.published_at),
     updated_at_text: formatDate(post.updated_at)
   };

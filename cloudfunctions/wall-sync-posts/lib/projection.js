@@ -21,7 +21,15 @@ function mirrorStatus(post) {
   return "published";
 }
 
-function publicAuthor(author) {
+function publicAuthor(author, anonymous = false) {
+  if (anonymous) {
+    return {
+      display_name: "匿名用户",
+      verified: false,
+      avatar_file_id: null
+    };
+  }
+
   return {
     display_name: author && author.username || "匿名用户",
     verified: Boolean(author && author.verified),
@@ -49,11 +57,18 @@ function safeDate(value, fieldName) {
 function projectPost(data, dependencies, sequence, existing = {}) {
   const board = dependencies.board || null;
   const author = dependencies.author || null;
+  const isAnonymous = data.isAnonymous === true;
+  const existingMedia = Array.isArray(existing.media)
+    ? existing.media
+    : (Array.isArray(existing.images)
+      ? existing.images.map((item) => ({ ...item, type: "image" }))
+      : []);
 
   return {
     _id: String(data.id),
     board_id: data.boardId ? String(data.boardId) : "uncategorized",
-    author_id: data.authorId ? String(data.authorId) : null,
+    author_id: !isAnonymous && data.authorId ? String(data.authorId) : null,
+    is_anonymous: isAnonymous,
     title: String(data.title || ""),
     body: String(data.body || ""),
     excerpt: createExcerpt(data.body),
@@ -65,7 +80,8 @@ function projectPost(data, dependencies, sequence, existing = {}) {
     pin_rank: data.pinned === true ? 1 : 0,
     board_enabled: board ? board.enabled === true : true,
     category: publicCategory(board, data.boardId),
-    author: publicAuthor(author),
+    author: publicAuthor(author, isAnonymous),
+    media: existingMedia,
     images: Array.isArray(existing.images) ? existing.images : [],
     published_at: safeDate(data.createdAt, "createdAt"),
     source_updated_at: safeDate(data.updatedAt || data.createdAt, "updatedAt"),

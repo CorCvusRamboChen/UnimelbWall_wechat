@@ -2,11 +2,12 @@
 
 一个基于原生微信小程序与 CloudBase 的公开帖子只读镜像。项目从墨大墙主站的受保护变更流同步公开数据，在 CloudBase 中建立面向阅读场景的镜像，再通过单一只读云函数向微信小程序提供帖子列表、分类和详情。
 
-> 当前仓库提供可部署的基础架构，不包含任何生产环境密钥或 CloudBase 环境 ID。源站同步依赖 [Unimebl-Wall PR #9：token-protected post mirror export API](https://github.com/CorCvusRamboChen/Unimebl-Wall/pull/9) 定义的 `export-posts` 变更流；正式部署前请确认该接口已合并并部署。
+> 当前仓库提供可部署的基础架构，不包含任何生产环境密钥或 CloudBase 环境 ID。源站同步依赖 [Unimebl-Wall PR #9：token-protected post mirror export API](https://github.com/CorCvusRamboChen/Unimebl-Wall/pull/9) 定义的 `export-posts` 变更流。PR #9 已合并；正式上线前仍需确认 `0033_post_export_api.sql` 已应用、Edge Function 已部署并配置密钥。
 
 ## 目录
 
 - [功能与边界](#功能与边界)
+- [母项目复核结论](#母项目复核结论)
 - [整体架构](#整体架构)
 - [项目结构](#项目结构)
 - [技术要求](#技术要求)
@@ -28,12 +29,13 @@
 ### 已实现
 
 - 原生微信小程序帖子流：首页加载、分类筛选、下拉刷新和游标分页。
-- 帖子详情：标题、作者公开信息、发布时间、标签、纯文本正文和图片预览。
+- 帖子详情：标题、作者公开信息、发布时间、标签、纯文本正文、图片预览和 MP4 播放。
+- 匿名帖：使用源站显式 `isAnonymous` 信号，强制移除作者关联、头像和认证标记。
 - 本地轻量缓存：缓存首屏和帖子详情，默认有效期为 5 分钟。
 - CloudBase 只读 API：统一处理参数校验、DTO 序列化、错误格式和分页游标。
 - 增量同步：幂等消费源站 `board`、`author`、`post` 和 `post_media` 变更。
 - 删除与隐藏传播：支持源站软删除、隐藏状态和物理删除事件。
-- 媒体镜像：通过受限任务队列把允许的 HTTPS 图片复制到 CloudBase 存储。
+- 媒体镜像：通过受限任务队列把允许的 HTTPS 图片和 MP4 复制到 CloudBase 存储。
 - 运维状态：记录同步游标、执行历史、连续失败次数和最近成功时间。
 - 自动化验证：覆盖变更流契约、十进制序列、游标、帖子投影和媒体 URL 安全。
 
@@ -46,6 +48,16 @@
 - 在客户端展示源媒体 URL、服务端密钥或内部管理字段。
 
 项目的目标是“可靠地只读浏览公开内容”，不是复刻主站的全部交互能力。
+
+## 母项目复核结论
+
+2026-08-16 对母项目默认分支和 PR #9 重新核对后，下游适配范围如下：
+
+- PR #9 已于 2026-08-06 合并，`export-posts` 仍使用 `apiVersion: "1"`。
+- 帖子 payload 在合并前增加了 `isAnonymous`；本项目现在按显式字段脱敏，不再只靠空 `authorId` 推断。
+- 母项目的导入帖已经会产生 `post_media.type=video` 的 MP4；本项目现在对图片和视频分别校验 MIME、镜像并展示。
+- 母项目后来新增了转载来源字段和 `comment_media`，但它们尚未加入 `export-posts` v1 白名单。本项目不会猜测或绕过契约读取这些数据。
+- `export-posts` 的 payload builder 在合并后没有新的提交；详细核对记录见 [源 API 映射](docs/source-api-contract.md)。
 
 ## 整体架构
 
@@ -78,7 +90,7 @@ flowchart LR
 │  ├─ components/post-card/           帖子卡片组件
 │  ├─ constants/config.js             CloudBase 环境与客户端参数
 │  ├─ pages/feed/                     帖子列表与分类筛选
-│  ├─ pages/post-detail/              帖子详情与图片预览
+│  ├─ pages/post-detail/              帖子详情、图片预览与视频播放
 │  ├─ pages/about/                    项目说明页
 │  └─ services/                       wall-api 客户端与本地缓存
 ├─ cloudfunctions/
@@ -185,7 +197,7 @@ wall_asset_jobs
 | `wall_posts` | `mirror_status, board_enabled, board_id, pin_rank, published_at, _id` | 分类帖子分页 |
 | `wall_posts` | `author_id` | 作者快照传播 |
 | `wall_posts` | `board_id` | 板块快照传播 |
-| `wall_post_media` | `post_id, position` | 详情图片排序 |
+| `wall_post_media` | `post_id, position` | 详情媒体排序 |
 | `wall_asset_jobs` | `status, next_attempt_at` | 媒体任务领取 |
 | `wall_sync_runs` | `started_at` 降序 | 运维执行记录 |
 
@@ -220,12 +232,12 @@ SOURCE_TIMEOUT_MS=15000
 | 变量 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `SOURCE_MEDIA_HOSTS` | 是 | 无 | 允许下载的媒体主机名，多个主机使用英文逗号分隔 |
-| `IMAGE_BATCH_SIZE` | 否 | `5` | 单次领取任务数，允许 `1..20` |
-| `IMAGE_DOWNLOAD_TIMEOUT_MS` | 否 | `15000` | 图片请求超时，允许 `1000..60000` 毫秒 |
-| `IMAGE_MAX_BYTES` | 否 | `10485760` | 单张图片最大字节数，最大可配置为 20 MiB |
-| `IMAGE_MAX_ATTEMPTS` | 否 | `5` | 单任务最大尝试次数，允许 `1..20` |
+| `MEDIA_BATCH_SIZE` | 否 | `5` | 单次领取任务数，允许 `1..20` |
+| `MEDIA_DOWNLOAD_TIMEOUT_MS` | 否 | `15000` | 媒体请求超时，允许 `1000..60000` 毫秒 |
+| `MEDIA_MAX_BYTES` | 否 | `26214400` | 单个媒体最大字节数，最大可配置为 100 MiB |
+| `MEDIA_MAX_ATTEMPTS` | 否 | `5` | 单任务最大尝试次数，允许 `1..20` |
 
-`SOURCE_MEDIA_HOSTS` 必须填写精确主机名，不接受任意 URL、通配符或 HTTP 地址。
+`SOURCE_MEDIA_HOSTS` 必须填写精确主机名，不接受任意 URL、通配符或 HTTP 地址。导入帖媒体已由母项目重新托管，通常只应加入受信任的源站 Storage/API 主机，不要为了小红书或抖音内容把第三方 CDN 批量加入白名单。旧版 `IMAGE_*` 变量仍作为兼容回退，新部署应使用 `MEDIA_*`。
 
 ## 云函数部署
 
@@ -274,19 +286,21 @@ wall-sync-assets  0 */2 * * * * *    每 2 分钟
 
 推荐按以下顺序初始化：
 
-1. 在源站合并并部署 PR #9，包括迁移、稳定的 Source ID、导出 Token 和 `export-posts` 函数。
+1. 在源站应用 PR #9 的 `0033_post_export_api.sql`，配置稳定的 Source ID、导出 Token 并部署 `export-posts` 函数。
 2. 在 CloudBase 开发环境创建集合、索引和拒绝客户端直读的安全规则。
 3. 部署 `wall-api`，确认空集合时能够返回结构化空结果，而不是函数异常。
 4. 配置并手动运行 `wall-sync-posts`。首次运行不传游标，会从变更序列起点开始回填。
 5. 检查 `wall_sync_state` 中 `_id=post-export` 的状态、游标和 `last_success_at`。
 6. 检查 `wall_sync_runs` 的处理数量、高水位和错误摘要。
 7. 配置媒体主机白名单并手动运行 `wall-sync-assets`。
-8. 确认图片已写入 CloudBase 存储，帖子详情只返回成功镜像的 `fileID`。
-9. 在开发者工具和真机上验证首屏、刷新、分页、详情、长文本、图片预览和弱网状态。
-10. 验证隐藏、软删除、物理删除、重复事件和错误 Token，不得造成游标跳跃或内容泄漏。
+8. 确认图片和 MP4 已写入 CloudBase 存储，帖子详情只返回成功镜像的 `fileID`。
+9. 在开发者工具和真机上验证首屏、刷新、分页、匿名标记、详情、长文本、图片预览、视频播放和弱网状态。
+10. 验证匿名作者脱敏、隐藏、软删除、物理删除、重复事件和错误 Token，不得造成游标跳跃或内容泄漏。
 11. 验证通过后启用两个定时触发器。
 
 如果初始化数据量超过单次 `SYNC_MAX_PAGES × SYNC_PAGE_LIMIT`，可以重复手动运行同步函数，直到响应与状态显示积压已清空。
+
+如果已有环境曾运行旧版图片镜像，请采用 [部署文档中的蓝绿升级方案](docs/deployment.md#8-从旧版图片镜像升级)，不要只重置现有游标。
 
 ## 小程序只读 API
 
@@ -343,7 +357,7 @@ wx.cloud.callFunction({
 | --- | --- |
 | `wall_boards` | 板块公开字段、启用状态和最后源事件序列 |
 | `wall_authors` | 作者公开昵称、头像裁剪参数、角色展示信息和最后事件序列 |
-| `wall_posts` | 帖子只读投影、公开状态、板块/作者快照、摘要和已镜像图片 |
+| `wall_posts` | 帖子只读投影、匿名状态、公开状态、板块/作者快照、摘要和已镜像媒体 |
 | `wall_post_media` | 媒体元数据、位置、镜像状态和 CloudBase `fileID` |
 | `wall_sync_state` | 当前源实例、游标、锁、健康状态和最近成功时间 |
 | `wall_sync_runs` | 每次同步的计数、游标范围、高水位与错误摘要 |
@@ -386,6 +400,7 @@ wx.cloud.callFunction({
 - 只接受 HTTPS。
 - 主机名必须与 `SOURCE_MEDIA_HOSTS` 中的精确条目匹配。
 - 限制响应超时、文件大小和 MIME 类型。
+- 图片记录只接受受支持的图片 MIME，视频记录只接受 `video/mp4`，声明与响应不一致时拒绝保存。
 - 不跟随未经重新验证的重定向。
 - 小程序只接收 CloudBase `fileID`，不接触源媒体 URL。
 
@@ -409,7 +424,8 @@ npm run check
 - 变更事件顺序、删除事件约束和 payload 校验。
 - `wall-api` 不透明游标、筛选条件绑定和畸形游标处理。
 - HTTPS 媒体主机精确白名单校验。
-- 帖子可见性、公开快照、图片状态与摘要生成。
+- 匿名作者脱敏、帖子可见性、公开快照和摘要生成。
+- 图片/MP4 类型匹配、统一媒体 DTO 与旧图片记录兼容。
 
 本地测试不能替代以下集成验证：
 
@@ -420,7 +436,7 @@ npm run check
 
 ## 上线检查清单
 
-- [ ] 源站 PR #9 已合并、迁移已执行、`export-posts` 已部署。
+- [ ] 源站 `0033_post_export_api.sql` 已执行、`export-posts` 已部署。
 - [ ] 开发与生产 CloudBase 环境完全隔离。
 - [ ] `project.config.json` 和客户端环境 ID 已替换为实际值。
 - [ ] 七个集合及所需复合索引已创建。
@@ -430,6 +446,8 @@ npm run check
 - [ ] `SOURCE_MEDIA_HOSTS` 只包含确认可信的精确主机名。
 - [ ] 首次回填已完成，`wall_sync_state` 显示最近成功时间。
 - [ ] 隐藏、软删除、物理删除和重复事件均已验证。
+- [ ] 匿名帖不暴露作者名、认证标记、头像或作者关联。
+- [ ] 图片预览与 MP4 播放均已在真机验证。
 - [ ] 两个定时触发器已创建且没有重叠执行异常。
 - [ ] `npm test` 与 `npm run check` 通过。
 - [ ] 开发者工具、体验版和至少一台真机验证通过。
@@ -462,9 +480,9 @@ Token 缺失、错误或已被源站轮换。修正云函数环境变量后重�
 3. 源帖子是否被隐藏、删除或处于非公开状态。
 4. 所需复合索引是否已经创建并生效。
 
-### 帖子有媒体记录但详情没有图片
+### 帖子有媒体记录但详情没有图片或视频
 
-只有 `asset_status` 完成并获得 CloudBase `mirror_file_id` 的图片才会进入公开详情。检查 `wall_asset_jobs`、媒体函数日志、域名白名单、MIME 类型和文件大小限制。
+只有 `asset_status` 完成并获得 CloudBase `mirror_file_id` 的媒体才会进入公开详情。检查 `wall_asset_jobs`、媒体函数日志、域名白名单、声明类型、MIME 类型和文件大小限制。视频当前只支持 MP4。
 
 ### 定时触发器没有运行
 
@@ -489,6 +507,7 @@ Token 缺失、错误或已被源站轮换。修正云函数环境变量后重�
 - [小程序 `Page` 生命周期](https://developers.weixin.qq.com/miniprogram/dev/reference/api/Page.html)
 - [`wx.cloud.callFunction`](https://developers.weixin.qq.com/miniprogram/dev/wxcloud/reference-sdk-api/functions/Cloud.callFunction.html)
 - [`wx.previewImage`](https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.previewImage.html)
+- [小程序 `video` 组件](https://developers.weixin.qq.com/miniprogram/dev/component/video.html)
 - [CloudBase 定时触发器](https://docs.cloudbase.net/cloud-function/timer-trigger)
 - [CloudBase 云函数安全规则](https://docs.cloudbase.net/cloud-function/security-rules)
 

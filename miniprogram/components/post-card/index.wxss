@@ -44,6 +44,16 @@
   color: #b94b00;
 }
 
+.badge--anonymous {
+  background: #f1edff;
+  color: #6645a3;
+}
+
+.badge--video {
+  background: #e9f5ff;
+  color: #17629b;
+}
+
 .post-card__time {
   flex: 0 0 auto;
   color: #7d8b9d;

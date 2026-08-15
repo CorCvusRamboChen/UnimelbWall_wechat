@@ -1,10 +1,16 @@
 const net = require("node:net");
 
-const MIME_EXTENSIONS = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/gif": "gif"
+const MEDIA_FORMATS = {
+  "image/jpeg": { extension: "jpg", type: "image" },
+  "image/png": { extension: "png", type: "image" },
+  "image/webp": { extension: "webp", type: "image" },
+  "image/gif": { extension: "gif", type: "image" },
+  "video/mp4": { extension: "mp4", type: "video" }
+};
+
+const ACCEPT_HEADERS = {
+  image: "image/webp,image/png,image/jpeg,image/gif",
+  video: "video/mp4"
 };
 
 function assetError(code, message) {
@@ -19,7 +25,7 @@ function validateMediaUrl(value, allowedHosts) {
   try {
     url = new URL(value);
   } catch (error) {
-    throw assetError("IMAGE_URL_INVALID", "Media URL is invalid");
+    throw assetError("MEDIA_URL_INVALID", "Media URL is invalid");
   }
 
   const hostname = url.hostname.toLowerCase();
@@ -31,7 +37,7 @@ function validateMediaUrl(value, allowedHosts) {
       || hostname === "localhost"
       || net.isIP(hostname) !== 0
       || !allowedHosts.includes(hostname)) {
-    throw assetError("IMAGE_HOST_NOT_ALLOWED", "Media URL is not on the allowlist");
+    throw assetError("MEDIA_HOST_NOT_ALLOWED", "Media URL is not on the allowlist");
   }
 
   return url;
@@ -41,13 +47,13 @@ async function readBoundedBody(response, maxBytes) {
   const declaredLength = Number(response.headers.get("content-length"));
 
   if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
-    throw assetError("IMAGE_TOO_LARGE", "Image exceeds the configured size limit");
+    throw assetError("MEDIA_TOO_LARGE", "Media exceeds the configured size limit");
   }
 
   if (!response.body || typeof response.body.getReader !== "function") {
     const buffer = Buffer.from(await response.arrayBuffer());
     if (buffer.length > maxBytes) {
-      throw assetError("IMAGE_TOO_LARGE", "Image exceeds the configured size limit");
+      throw assetError("MEDIA_TOO_LARGE", "Media exceeds the configured size limit");
     }
     return buffer;
   }
@@ -62,7 +68,7 @@ async function readBoundedBody(response, maxBytes) {
     total += value.byteLength;
     if (total > maxBytes) {
       await reader.cancel();
-      throw assetError("IMAGE_TOO_LARGE", "Image exceeds the configured size limit");
+      throw assetError("MEDIA_TOO_LARGE", "Media exceeds the configured size limit");
     }
     chunks.push(Buffer.from(value));
   }
@@ -70,45 +76,59 @@ async function readBoundedBody(response, maxBytes) {
   return Buffer.concat(chunks, total);
 }
 
-async function downloadImage(value, config) {
+function mediaFormat(mime, expectedType) {
+  const format = MEDIA_FORMATS[mime];
+
+  if (!format || format.type !== expectedType) {
+    throw assetError("MEDIA_FORMAT_UNSUPPORTED", "Media MIME type does not match its declared type");
+  }
+
+  return format;
+}
+
+async function downloadAsset(value, expectedType, config) {
+  if (!ACCEPT_HEADERS[expectedType]) {
+    throw assetError("MEDIA_TYPE_UNSUPPORTED", "Media type is not supported");
+  }
+
   const url = validateMediaUrl(value, config.allowedHosts);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-  let response;
 
   try {
-    response = await fetch(url, {
+    const response = await fetch(url, {
       method: "GET",
       redirect: "error",
-      headers: { Accept: "image/avif,image/webp,image/png,image/jpeg,image/gif" },
+      headers: { Accept: ACCEPT_HEADERS[expectedType] },
       signal: controller.signal
     });
+
+    if (!response.ok) {
+      throw assetError("MEDIA_DOWNLOAD_FAILED", `Media returned HTTP ${response.status}`);
+    }
+
+    const mime = String(response.headers.get("content-type") || "")
+      .split(";")[0]
+      .trim()
+      .toLowerCase();
+    const format = mediaFormat(mime, expectedType);
+    const buffer = await readBoundedBody(response, config.maxBytes);
+
+    return { buffer, mime, extension: format.extension, type: format.type };
   } catch (error) {
     if (error && error.code) throw error;
     throw assetError(
-      error && error.name === "AbortError" ? "IMAGE_TIMEOUT" : "IMAGE_DOWNLOAD_FAILED",
-      "Image download failed"
+      error && error.name === "AbortError" ? "MEDIA_TIMEOUT" : "MEDIA_DOWNLOAD_FAILED",
+      "Media download failed"
     );
   } finally {
     clearTimeout(timeout);
   }
-
-  if (!response.ok) {
-    throw assetError("IMAGE_DOWNLOAD_FAILED", `Image returned HTTP ${response.status}`);
-  }
-
-  const mime = String(response.headers.get("content-type") || "")
-    .split(";")[0]
-    .trim()
-    .toLowerCase();
-  const extension = MIME_EXTENSIONS[mime];
-
-  if (!extension) {
-    throw assetError("IMAGE_FORMAT_UNSUPPORTED", "Image MIME type is not supported");
-  }
-
-  const buffer = await readBoundedBody(response, config.maxBytes);
-  return { buffer, mime, extension };
 }
 
-module.exports = { MIME_EXTENSIONS, validateMediaUrl, downloadImage };
+module.exports = {
+  MEDIA_FORMATS,
+  validateMediaUrl,
+  mediaFormat,
+  downloadAsset
+};

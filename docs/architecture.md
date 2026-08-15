@@ -25,7 +25,8 @@ PR #9 已提供事务内变更记录、物理删除墓碑和从游标 `0` 开始
 | API 直接返回帖子数组 | `changes[]` 包含五种实体 | 按 `seq` 顺序分派到实体处理器 |
 | `published/hidden/deleted` 是顶层变更 | `operation=upsert/delete`，软删除在帖子 payload 内 | 物理删除执行删除；软删除/隐藏保留镜像但不公开 |
 | 每日全量核对修复硬删除 | 事务日志带物理删除墓碑 | 正常持续消费即可；另做运维审计而非盲目全量隐藏 |
-| 图片 URL 可直接进入客户端 | 媒体二进制必须独立复制且需要防 SSRF | 仅把已成功复制的 CloudBase `fileID` 返回客户端 |
+| 图片/视频 URL 可直接进入客户端 | 媒体二进制必须独立复制且需要防 SSRF | 仅把已成功复制的 CloudBase `fileID` 返回客户端 |
+| 通过空 `authorId` 推断匿名 | 帖子 payload 显式提供 `isAnonymous` | 匿名帖清除作者关联、认证标记和头像快照 |
 
 ## 3. CloudBase 数据模型
 
@@ -44,7 +45,9 @@ PR #9 已提供事务内变更记录、物理删除墓碑和从游标 `0` 开始
 - `mirror_status`：`published | hidden | deleted | unavailable`
 - `pin_rank`：把布尔置顶转换为可稳定排序的 `1 | 0`
 - `category`、`author`：板块和作者的公开快照
-- `images`：仅含已完成复制的 `file_id`、尺寸和顺序
+- `is_anonymous`：源 `isAnonymous` 的显式镜像；为真时不保存帖子作者关联
+- `media`：仅含已完成复制的 `file_id`、`image | video` 类型、尺寸和顺序
+- `images`：从 `media` 派生的图片兼容字段，供列表缩略图和旧客户端使用
 - `excerpt`：同步时生成的纯文本摘要
 - `published_at`：第一版使用源 `createdAt`
 - `source_last_seq`：字符串形式的最近事件序列号
@@ -106,14 +109,14 @@ pin_rank DESC, published_at DESC, _id DESC
 - `services/wall-api.js` 负责云函数调用、响应校验和错误标准化。
 - `services/cache.js` 只缓存首屏与详情，默认五分钟；CloudBase 始终是正式数据源。
 - WXML 只渲染纯文本，不接收任意 HTML。
-- 图片预览只使用 CloudBase `fileID`。
+- 图片预览与视频播放只使用已镜像的 CloudBase `fileID`。
 
 ## 7. 安全边界
 
 - `POST_EXPORT_API_TOKEN` 只存在于 `wall-sync-posts` 云函数环境变量。
 - CloudBase 集合不向小程序客户端开放直接读取。
 - 函数调用安全规则仅允许客户端调用 `wall-api`；定时同步和媒体函数禁止客户端调用。
-- 源媒体只允许 HTTPS 且主机名必须在 `SOURCE_MEDIA_HOSTS` 白名单中；限制响应体大小、超时和 MIME 类型，不跟随未验证重定向。
+- 源媒体只允许 HTTPS 且主机名必须在 `SOURCE_MEDIA_HOSTS` 白名单中；限制响应体大小、超时和 MIME 类型，不跟随未验证重定向。声明为图片的记录只接受受支持图片 MIME，声明为视频的记录只接受 MP4。
 - 日志不记录 Token、Authorization、完整二进制或服务端密钥。
 
 ## 8. 微信与 CloudBase 文档依据
@@ -122,5 +125,6 @@ pin_rank DESC, published_at DESC, _id DESC
 - [微信小程序 `Page` 生命周期](https://developers.weixin.qq.com/miniprogram/dev/reference/api/Page.html)
 - [微信云开发 `wx.cloud.callFunction`](https://developers.weixin.qq.com/miniprogram/dev/wxcloud/reference-sdk-api/functions/Cloud.callFunction.html)
 - [微信小程序图片预览 `wx.previewImage`](https://developers.weixin.qq.com/miniprogram/dev/api/media/image/wx.previewImage.html)
+- [微信小程序 `video` 组件](https://developers.weixin.qq.com/miniprogram/dev/component/video.html)
 - [CloudBase 定时触发器](https://docs.cloudbase.net/cloud-function/timer-trigger)
 - [CloudBase 云函数安全规则](https://docs.cloudbase.net/cloud-function/security-rules)
