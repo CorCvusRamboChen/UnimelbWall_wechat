@@ -137,7 +137,7 @@ npm run check
 
 1. 打开微信开发者工具，选择“导入项目”。
 2. 项目目录选择仓库根目录，而不是 `miniprogram/` 子目录。
-3. 在 [project.config.json](project.config.json) 中把 `appid` 从 `touristappid` 替换为真实 AppID，或在导入界面选择对应 AppID。
+3. 仓库中的 [project.config.json](project.config.json) 使用 `touristappid` 占位符。请在导入界面选择自己有权限的 AppID；正式 AppID、AppSecret 和开发者工具生成的私有配置不得提交到仓库。
 4. 确认开发者工具识别到：
    - 小程序目录：`miniprogram/`
    - 云函数目录：`cloudfunctions/`

@@ -202,8 +202,15 @@
   background: #ffffff;
 }
 
-.post-list post-card {
+.post-list {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.post-card-host {
   display: block;
+  width: 100%;
 }
 
 .skeleton-card {
