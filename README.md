@@ -1,15 +1,29 @@
-# 墨大墙只读微信小程序
+# 墨大墙微信小程序（只读镜像）
 
-一个基于原生微信小程序与 CloudBase 的公开帖子只读镜像。项目从墨大墙主站的受保护变更流同步公开数据，在 CloudBase 中建立面向阅读场景的镜像，再通过单一只读云函数向微信小程序提供帖子列表、分类和详情。
+一个基于原生微信小程序与 CloudBase 的公开内容只读镜像。项目从墨大墙主站的受保护变更流增量同步数据，在 CloudBase 中建立面向阅读场景的公开投影，再通过单一只读云函数向小程序提供内容列表、分类、详情和同步状态。
 
 > 当前仓库提供可部署的基础架构，不包含任何生产环境密钥或 CloudBase 环境 ID。源站同步依赖 [Unimebl-Wall PR #9：token-protected post mirror export API](https://github.com/CorCvusRamboChen/Unimebl-Wall/pull/9) 定义的 `export-posts` 变更流。PR #9 已合并；正式上线前仍需确认 `0033_post_export_api.sql` 已应用、Edge Function 已部署并配置密钥。
 
+## 当前实现一览
+
+| 层级 | 当前实现 |
+| --- | --- |
+| 小程序端 | 原生 WXML / WXSS / JavaScript；内容流、分类筛选、下拉刷新、游标分页、详情、图片预览、MP4 播放、关于与同步状态 |
+| 客户端数据层 | `wx.cloud.callFunction` 调用封装；列表首屏与详情的 5 分钟本地缓存；统一中文错误提示 |
+| 只读网关 | `wall-api`；固定动作路由、参数校验、公开 DTO、分类绑定游标和内部错误脱敏 |
+| 内容同步 | `wall-sync-posts`；Bearer Token 鉴权、不透明源游标、顺序校验、幂等投影、分布式锁和运行记录 |
+| 媒体同步 | `wall-sync-assets`；任务队列、精确域名白名单、HTTPS / MIME / 大小校验、CloudBase 存储镜像和重试 |
+| 数据存储 | 7 个 CloudBase 集合，分别保存公开读模型、同步状态、执行记录和媒体任务 |
+| 本地质量门禁 | Node.js 内置测试运行器 + JavaScript / JSON 语法检查；不依赖真实 CloudBase 环境 |
+
 ## 目录
 
+- [当前实现一览](#当前实现一览)
 - [功能与边界](#功能与边界)
 - [母项目复核结论](#母项目复核结论)
 - [整体架构](#整体架构)
 - [项目结构](#项目结构)
+- [页面与模块职责](#页面与模块职责)
 - [技术要求](#技术要求)
 - [快速开始](#快速开始)
 - [CloudBase 配置](#cloudbase-配置)
@@ -20,6 +34,7 @@
 - [同步一致性](#同步一致性)
 - [安全与隐私](#安全与隐私)
 - [测试与质量检查](#测试与质量检查)
+- [已知限制与运维注意](#已知限制与运维注意)
 - [上线检查清单](#上线检查清单)
 - [常见问题](#常见问题)
 - [相关文档](#相关文档)
@@ -28,16 +43,17 @@
 
 ### 已实现
 
-- 原生微信小程序帖子流：首页加载、分类筛选、下拉刷新和游标分页。
-- 帖子详情：标题、作者公开信息、发布时间、标签、纯文本正文、图片预览和 MP4 播放。
+- 原生微信小程序内容流：首页加载、分类筛选、下拉刷新和游标分页。
+- 内容详情：标题、作者公开信息、发布时间、纯文本正文、评论数量、图片预览和 MP4 播放。
 - 匿名帖：使用源站显式 `isAnonymous` 信号，强制移除作者关联、头像和认证标记。
-- 本地轻量缓存：缓存首屏和帖子详情，默认有效期为 5 分钟。
+- 同步状态反馈：显示最近成功同步时间，并在 `degraded` / `unhealthy` 时继续提供旧数据和明确警告。
+- 本地轻量缓存：按分类缓存列表首屏、按 ID 缓存详情，默认有效期为 5 分钟；每次打开仍会后台请求正式数据。
 - CloudBase 只读 API：统一处理参数校验、DTO 序列化、错误格式和分页游标。
 - 增量同步：幂等消费源站 `board`、`author`、`post` 和 `post_media` 变更。
 - 删除与隐藏传播：支持源站软删除、隐藏状态和物理删除事件。
 - 媒体镜像：通过受限任务队列把允许的 HTTPS 图片和 MP4 复制到 CloudBase 存储。
 - 运维状态：记录同步游标、执行历史、连续失败次数和最近成功时间。
-- 自动化验证：覆盖变更流契约、十进制序列、游标、帖子投影和媒体 URL 安全。
+- 自动化验证：覆盖变更流契约、十进制序列、游标、帖子投影、媒体 URL 安全、客户端用词和关键布局约束。
 
 ### 第一版明确不做
 
@@ -51,13 +67,13 @@
 
 ## 母项目复核结论
 
-2026-08-16 对母项目默认分支和 PR #9 重新核对后，下游适配范围如下：
+2026-08-19 对母项目默认分支和 PR #9 重新核对后，下游适配范围如下：
 
 - PR #9 已于 2026-08-06 合并，`export-posts` 仍使用 `apiVersion: "1"`。
 - 帖子 payload 在合并前增加了 `isAnonymous`；本项目现在按显式字段脱敏，不再只靠空 `authorId` 推断。
 - 母项目的导入帖已经会产生 `post_media.type=video` 的 MP4；本项目现在对图片和视频分别校验 MIME、镜像并展示。
 - 母项目后来新增了转载来源字段和 `comment_media`，但它们尚未加入 `export-posts` v1 白名单。本项目不会猜测或绕过契约读取这些数据。
-- `export-posts` 的 payload builder 在合并后没有新的提交；详细核对记录见 [源 API 映射](docs/source-api-contract.md)。
+- `export-posts` 的核心实现和 `0033_post_export_api.sql` 在合并后没有新的契约提交；详细字段映射见 [源 API 映射](docs/source-api-contract.md)。
 
 ## 整体架构
 
@@ -69,7 +85,7 @@ flowchart LR
   D --> E["wall-sync-assets<br/>受限下载与云存储"]
   E --> C
   C --> F["wall-api<br/>只读 DTO 与分页游标"]
-  F -->|"wx.cloud.callFunction"| G["原生微信小程序<br/>feed / post-detail / about"]
+  F -->|"wx.cloud.callFunction"| G["原生微信小程序<br/>内容流 / 详情 / 关于"]
 ```
 
 核心原则：
@@ -79,6 +95,22 @@ flowchart LR
 3. **镜像采用公开字段白名单。** CloudBase 数据不等同于源库备份，只保存阅读功能需要的公开投影。
 4. **媒体单独处理。** 帖子同步只创建任务；媒体函数完成域名校验、大小限制和云存储复制。
 5. **游标按页提交。** 一页事件全部处理成功后才推进游标，失败只会造成安全重放，不会跳过事件。
+
+### 客户端读取路径
+
+1. `app.js` 根据 `develop / trial / release` 选择 CloudBase 环境并初始化 `wx.cloud`。
+2. 内容流和详情页先尝试读取 5 分钟内的本地缓存，再通过 `services/wall-api.js` 调用 `wall-api`。
+3. `wall-api` 校验固定动作和参数，只查询 `mirror_status=published` 且 `board_enabled=true` 的读模型。
+4. 云函数把内部记录序列化为最小公开 DTO；源媒体 URL、内部状态和错误堆栈不会返回客户端。
+5. 列表页更新首屏缓存并展示同步状态；详情页只渲染纯文本和已完成镜像的 CloudBase `fileID`。
+
+### 增量同步路径
+
+1. `wall-sync-posts` 获取事务锁，从 `wall_sync_state.cursor` 继续请求 `export-posts`。
+2. 函数校验 API 版本、源实例、事件顺序与 payload，再按 `board → author → post → post_media` 实际事件顺序逐条投影。
+3. `post_media` 变更写入元数据并创建幂等 `wall_asset_jobs`，但不会把源 URL 暴露给读 API。
+4. `wall-sync-assets` 领取任务，完成 SSRF 防护、MIME 与大小校验后上传 CloudBase 存储。
+5. 媒体就绪后回写 `wall_posts.media`；只有这时客户端 DTO 才能看到对应图片或视频。
 
 更完整的设计取舍见 [架构文档](docs/architecture.md)。
 
@@ -92,7 +124,8 @@ flowchart LR
 │  ├─ pages/feed/                     帖子列表与分类筛选
 │  ├─ pages/post-detail/              帖子详情、图片预览与视频播放
 │  ├─ pages/about/                    项目说明页
-│  └─ services/                       wall-api 客户端与本地缓存
+│  ├─ services/                       wall-api 客户端与本地缓存
+│  └─ utils/date.js                   相对时间与日期格式化
 ├─ cloudfunctions/
 │  ├─ wall-api/                       客户端唯一可调用的只读函数
 │  ├─ wall-sync-posts/                PR #9 变更流消费者
@@ -101,11 +134,37 @@ flowchart LR
 │  ├─ architecture.md                 架构、数据模型和安全边界
 │  ├─ source-api-contract.md          PR #9 请求、响应与事件映射
 │  └─ deployment.md                   CloudBase 部署步骤
+├─ design-system/unimelb-wall-wechat/ 前端视觉、交互和可访问性规范
 ├─ scripts/check-syntax.js            JS 与 JSON 静态语法检查
 ├─ tests/                             不依赖云环境的 Node.js 测试
 ├─ project.config.json                微信开发者工具项目配置
 └─ package.json                       本地检查命令与 Node 版本约束
 ```
+
+`project.private.config.json` 由微信开发者工具在本机维护且已被 `.gitignore` 排除；真实 AppID 和个人设置都不得进入提交。
+
+## 页面与模块职责
+
+### 小程序端
+
+| 路径 | 职责 |
+| --- | --- |
+| `pages/feed` | 恢复分类首屏缓存、并行加载分类、请求首屏、下拉刷新、触底分页、去重和同步异常提示 |
+| `components/post-card` | 展示作者首字、分类、时间、置顶/匿名/视频标签、摘要、缩略图和评论数，并触发详情导航 |
+| `pages/post-detail` | 校验路由 ID、恢复详情缓存、请求最新 DTO、按源顺序展示图片/视频并提供图片预览 |
+| `pages/about` | 解释只读与隐私边界，调用 `sync.status` 展示最近成功同步时间 |
+| `services/wall-api.js` | 封装四个只读动作，将网络错误和服务端错误转换为 `WallApiError` |
+| `services/cache.js` | 使用微信同步 Storage API 提供带 TTL 的容错缓存；缓存失败不阻断正式请求 |
+
+### 云函数端
+
+| 模块 | 职责与边界 |
+| --- | --- |
+| `wall-api` | 唯一面向客户端的函数；最大分页 20 条，只返回公开 DTO，不接受任意查询表达式 |
+| `wall-sync-posts` | 每 5 分钟消费源变更；单次默认最多 `10 × 50` 个事件，使用锁和 `source_last_seq` 保证安全重放 |
+| `wall-sync-assets` | 每 2 分钟串行处理默认 5 个媒体任务；只接受白名单 HTTPS 图片和 MP4 |
+
+三个云函数是彼此独立的部署单元，各自拥有 `package.json` 和 `wx-server-sdk` 依赖。
 
 ## 技术要求
 
@@ -113,9 +172,10 @@ flowchart LR
 - [微信开发者工具](https://developers.weixin.qq.com/miniprogram/dev/devtools/download.html)。
 - 已注册的小程序 AppID；游客 AppID 只能用于有限的本地预览。
 - 可用的微信云开发 / CloudBase 环境，建议分别创建开发和生产环境。
+- `wall-sync-posts` 与 `wall-sync-assets` 需要支持全局 `fetch`、`AbortController` 和 Web Streams 的 Node.js 18+ 云函数运行时；建议直接选择 Node.js 20。
 - 有权部署源站 PR #9 `export-posts` 接口并配置其访问 Token。
 
-仓库根目录没有第三方运行时依赖；三个云函数分别依赖 `wx-server-sdk`，部署时需要在各自目录安装，或选择“云端安装依赖”。
+仓库根目录没有第三方运行时依赖，因此本地检查无需先执行 `npm install`。三个云函数分别依赖 `wx-server-sdk`，部署时需要在各自目录安装，或选择“云端安装依赖”。
 
 ## 快速开始
 
@@ -137,7 +197,7 @@ npm run check
 
 1. 打开微信开发者工具，选择“导入项目”。
 2. 项目目录选择仓库根目录，而不是 `miniprogram/` 子目录。
-3. 仓库中的 [project.config.json](project.config.json) 使用 `touristappid` 占位符。请在导入界面选择自己有权限的 AppID；正式 AppID、AppSecret 和开发者工具生成的私有配置不得提交到仓库。
+3. 仓库中的 [project.config.json](project.config.json) 固定使用 `touristappid` 占位符。请在导入界面选择自己有权限的 AppID；开发者工具可能在本地修改项目配置，提交前必须确认受版本控制的文件仍为占位值。不要提交正式 AppID、AppSecret 或私有配置。
 4. 确认开发者工具识别到：
    - 小程序目录：`miniprogram/`
    - 云函数目录：`cloudfunctions/`
@@ -161,6 +221,8 @@ module.exports = {
 ```
 
 `develop`、`trial`、`release` 对应微信小程序的开发版、体验版和正式版。环境 ID 可以进入客户端代码，但任何 Token、Supabase 密钥和服务端密钥都不能写在这里。
+
+空字符串只适合尚未配置环境的仓库占位状态。正式联调前应显式填写对应环境，避免开发版、体验版和正式版意外连接到错误的默认环境。
 
 ## CloudBase 配置
 
@@ -257,6 +319,8 @@ npm install --omit=dev
 
 不要在三个目录之间共享 `node_modules`；CloudBase 会把每个函数作为独立部署单元。
 
+部署两个同步函数时确认云端 Node.js 运行时至少为 18，建议与本地统一使用 20。`wall-api` 本身不依赖全局 `fetch`，但统一运行时可以减少环境差异。
+
 ### 定时触发器
 
 仓库中的 `config.json` 已声明 CloudBase 七段 Cron：
@@ -325,6 +389,16 @@ wx.cloud.callFunction({
 | `categories.list` | 无 | 获取已启用公开分类 |
 | `sync.status` | 无 | 获取最近同步状态与成功时间 |
 
+公开 DTO 采用 `snake_case`，并刻意小于 CloudBase 内部读模型：
+
+| 响应 | 公开字段 |
+| --- | --- |
+| 列表项 | `id`, `title`, `excerpt`, `category`, `author`, `is_anonymous`, `is_pinned`, `has_video`, `comment_count`, `thumbnail_file_id`, `published_at` |
+| 详情新增 | `body_format`, `body`, `media`, `images`, `updated_at`, `content_version` |
+| 媒体项 | `id`, `type`, `file_id`, `width`, `height`, `alt` |
+
+`images` 是旧图片记录的兼容字段；新客户端以 `media` 为准。当前读 API 不返回标签、点赞数、收藏数、作者角色、作者头像 URL 或源媒体 URL。
+
 成功响应统一包含 `ok: true`。列表响应示例：
 
 ```json
@@ -379,6 +453,22 @@ wx.cloud.callFunction({
 
 `seq`、`highWatermark` 和相关游标序列不能转换为 JavaScript `Number`。实现使用十进制字符串比较，避免超过安全整数范围后丢失精度。
 
+### 同步健康状态
+
+- 初始状态为 `unknown`；一次完整成功会变为 `healthy` 并把连续失败数清零。
+- 连续失败 1–2 次时仍为 `healthy`，3–11 次为 `degraded`，12 次及以上为 `unhealthy`。
+- 列表页和关于页只展示最近成功时间与健康状态，不把内部错误消息暴露给用户。
+
+### 媒体任务生命周期
+
+```text
+pending → processing → ready
+                  └→ retry → processing
+                           └→ failed
+```
+
+媒体任务使用事务领取，下载失败后指数退避，最长等待 1 小时；默认第 5 次失败后进入 `failed`。任务完成前，`wall_posts.media` 不包含对应文件，因此客户端不会收到半成品或源 URL。
+
 ## 安全与隐私
 
 ### 密钥隔离
@@ -426,6 +516,10 @@ npm run check
 - HTTPS 媒体主机精确白名单校验。
 - 匿名作者脱敏、帖子可见性、公开快照和摘要生成。
 - 图片/MP4 类型匹配、统一媒体 DTO 与旧图片记录兼容。
+- 媒体环境变量默认值与旧 `IMAGE_*` 变量兼容。
+- 小程序内容流宽度约束、公开 AppID 占位和面向用户的“内容”用词。
+
+`npm test` 当前运行 24 个纯 Node.js 测试；`npm run check` 会递归解析仓库内所有 `.js` 与 `.json` 文件。两条命令都不会访问网络、CloudBase 或真实源站。
 
 本地测试不能替代以下集成验证：
 
@@ -434,11 +528,21 @@ npm run check
 - 源站 `export-posts` 的真实鉴权与分页。
 - 微信开发者工具编译、体验版和真机弱网表现。
 
+## 已知限制与运维注意
+
+- **只支持源契约 v1。** `apiVersion` 或 `payloadVersion` 变化会主动停止同步；升级时必须同时修改实现、测试和契约文档。
+- **没有自动化 CloudBase 集成测试。** 集合、复合索引、安全规则、触发器和真机表现仍需按上线清单人工验证。
+- **媒体任务没有处理租约。** `wall-sync-assets` 在领取后异常终止时，任务可能停在 `processing`；确认没有仍在运行的函数后，需要人工核对并重置为 `retry`。
+- **旧云存储文件不会自动清理。** 媒体 URL 变更、媒体删除或帖子物理删除会更新数据库读模型，但现有实现不删除先前上传的 CloudBase 文件；生产环境应另设存储生命周期或离线清理流程。
+- **源游标必须长期可重放。** 当前同步端没有 `CURSOR_EXPIRED` 的快照恢复流程；源端若要清理变更历史，必须先提供一致性快照和明确的过期语义。
+- **媒体格式有限。** 图片仅支持 JPEG、PNG、WebP、GIF，视频仅支持 MP4；不转码、不压缩，也不自动生成视频封面。
+- **仓库暂未包含 `LICENSE`。** 在公开复用或分发代码前，请先向项目维护者确认授权方式。
+
 ## 上线检查清单
 
 - [ ] 源站 `0033_post_export_api.sql` 已执行、`export-posts` 已部署。
 - [ ] 开发与生产 CloudBase 环境完全隔离。
-- [ ] `project.config.json` 和客户端环境 ID 已替换为实际值。
+- [ ] 本地导入已使用真实 AppID，但待提交的 `project.config.json` 仍保持 `touristappid`；客户端环境 ID 已按版本填写。
 - [ ] 七个集合及所需复合索引已创建。
 - [ ] 所有集合均拒绝小程序直接读写。
 - [ ] 三个云函数已使用正确名称和当前环境部署。
@@ -449,6 +553,7 @@ npm run check
 - [ ] 匿名帖不暴露作者名、认证标记、头像或作者关联。
 - [ ] 图片预览与 MP4 播放均已在真机验证。
 - [ ] 两个定时触发器已创建且没有重叠执行异常。
+- [ ] 已巡检 `wall_asset_jobs` 中长期停留在 `processing` 的任务，并建立云存储孤儿文件清理策略。
 - [ ] `npm test` 与 `npm run check` 通过。
 - [ ] 开发者工具、体验版和至少一台真机验证通过。
 - [ ] 弱网、源站不可用和媒体失败时仍能安全显示旧数据或明确错误状态。
@@ -484,6 +589,14 @@ Token 缺失、错误或已被源站轮换。修正云函数环境变量后重�
 
 只有 `asset_status` 完成并获得 CloudBase `mirror_file_id` 的媒体才会进入公开详情。检查 `wall_asset_jobs`、媒体函数日志、域名白名单、声明类型、MIME 类型和文件大小限制。视频当前只支持 MP4。
 
+### 媒体任务长期停在 `processing`
+
+当前任务领取没有超时租约。先确认没有仍在运行的 `wall-sync-assets` 实例，再检查对应 `wall_post_media` 的 `source_url_hash` 与任务是否一致；确认任务仍有效后，将状态改为 `retry` 并把 `next_attempt_at` 设为当前时间。不要在函数仍运行时重置，否则可能造成重复上传。
+
+### 同步函数提示运行时不支持或 `fetch` 不存在
+
+把 `wall-sync-posts` 和 `wall-sync-assets` 的 CloudBase Node.js 运行时升级到 18 或更高版本，建议使用 20，然后重新部署。根目录 `package.json` 的 Node.js 版本约束不会自动改变云端函数运行时。
+
 ### 定时触发器没有运行
 
 确认部署时上传了两个 `config.json`，并在 CloudBase 控制台检查触发器是否实际存在。Cron 使用七段格式，控制台显示的时区可能与本地时区不同。
@@ -499,6 +612,7 @@ Token 缺失、错误或已被源站轮换。修正云函数环境变量后重�
 - [架构设计](docs/architecture.md)
 - [PR #9 源 API 映射](docs/source-api-contract.md)
 - [CloudBase 部署说明](docs/deployment.md)
+- [小程序设计系统](design-system/unimelb-wall-wechat/MASTER.md)
 - [源站 PR #9](https://github.com/CorCvusRamboChen/Unimebl-Wall/pull/9)
 
 微信与 CloudBase 官方文档：
