@@ -13,7 +13,7 @@
   <view class="mirror-bar">
     <view class="mirror-identity">
       <view class="mirror-dot {{syncStatus === 'degraded' || syncStatus === 'unhealthy' ? 'mirror-dot--warning' : ''}}"></view>
-      <text>公开帖子只读镜像</text>
+      <text>公开内容只读镜像</text>
     </view>
     <text wx:if="{{lastSyncedAtText}}" class="mirror-time">更新于 {{lastSyncedAtText}}</text>
     <text wx:else class="mirror-time">正在读取同步状态</text>
@@ -24,7 +24,7 @@
     <text class="sync-warning__copy">当前仍可浏览最近一次成功同步的数据。</text>
   </view>
 
-  <scroll-view class="category-scroll" scroll-x="true" enhanced="true" show-scrollbar="false" aria-label="帖子分类">
+  <scroll-view class="category-scroll" scroll-x="true" enhanced="true" show-scrollbar="false" aria-label="内容分类">
     <view class="category-row">
       <button
         wx:for="{{categories}}"
@@ -37,7 +37,7 @@
     </view>
   </scroll-view>
 
-  <view wx:if="{{initialLoading && items.length === 0}}" class="feed-surface skeleton-list" aria-label="正在加载帖子">
+  <view wx:if="{{initialLoading && items.length === 0}}" class="feed-surface skeleton-list" aria-label="正在加载内容">
     <view wx:for="{{[1, 2, 3]}}" wx:key="*this" class="skeleton-card">
       <view class="skeleton-author">
         <view class="skeleton skeleton--avatar"></view>
@@ -53,13 +53,13 @@
   </view>
 
   <view wx:elif="{{error && items.length === 0}}" class="status-card">
-    <text class="status-title">暂时无法加载帖子</text>
+    <text class="status-title">暂时无法加载内容</text>
     <text class="muted">{{error}}</text>
     <button class="primary-button" bindtap="onRetry">重新加载</button>
   </view>
 
   <view wx:elif="{{!initialLoading && items.length === 0}}" class="status-card">
-    <text class="status-title">这里暂时没有公开帖子</text>
+    <text class="status-title">这里暂时没有公开内容</text>
     <text class="muted">可以切换分类，或下拉刷新后再看看。</text>
   </view>
 
@@ -73,6 +73,6 @@
     />
   </view>
 
-  <view wx:if="{{loadingMore}}" class="footer-state">正在加载更多帖子…</view>
-  <view wx:elif="{{items.length > 0 && !hasMore}}" class="footer-state">已显示全部公开帖子</view>
+  <view wx:if="{{loadingMore}}" class="footer-state">正在加载更多内容…</view>
+  <view wx:elif="{{items.length > 0 && !hasMore}}" class="footer-state">已显示全部公开内容</view>
 </view>

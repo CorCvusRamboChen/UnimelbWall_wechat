@@ -2,7 +2,7 @@
   class="post-card {{post.is_anonymous ? 'post-card--anonymous' : ''}}"
   bindtap="handleTap"
   hover-class="post-card--pressed"
-  aria-label="查看帖子：{{post.title || '无标题帖子'}}"
+  aria-label="查看内容：{{post.title || '无标题内容'}}"
 >
   <view class="post-card__header">
     <view class="author-avatar {{post.is_anonymous ? 'author-avatar--anonymous' : ''}}" aria-hidden="true">
@@ -27,7 +27,7 @@
     <text wx:if="{{post.has_video}}" class="flag flag--video">视频</text>
   </view>
 
-  <text class="post-card__title">{{post.title || '无标题帖子'}}</text>
+  <text class="post-card__title">{{post.title || '无标题内容'}}</text>
   <text wx:if="{{post.excerpt}}" class="post-card__excerpt">{{post.excerpt}}</text>
 
   <view wx:if="{{post.thumbnail_file_id}}" class="media-preview">
@@ -36,7 +36,7 @@
       src="{{post.thumbnail_file_id}}"
       mode="aspectFill"
       lazy-load="true"
-      aria-label="帖子图片预览"
+      aria-label="内容图片预览"
     />
     <text wx:if="{{post.has_video}}" class="media-preview__label">包含视频</text>
   </view>

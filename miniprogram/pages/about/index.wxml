@@ -3,7 +3,7 @@
     <view class="about-brand__mark" aria-hidden="true">墨</view>
     <view>
       <text class="about-brand__title">墨大墙</text>
-      <text class="about-brand__subtitle">UNIMELB WALL · 公开帖子镜像</text>
+      <text class="about-brand__subtitle">UNIMELB WALL · 公开内容镜像</text>
     </view>
   </view>
 
@@ -11,7 +11,7 @@
     <view class="about-section about-section--first">
       <text class="section-eyebrow">ABOUT</text>
       <text class="section-title">一个克制的只读入口</text>
-      <text class="about-copy">这里用于浏览墨大墙论坛中已经公开的帖子。内容由服务器定时同步，第一版不提供登录、发帖、评论、点赞、收藏、私信或账户功能。</text>
+      <text class="about-copy">这里用于浏览墨大墙已经公开的内容。内容由服务器定时同步，第一版不提供登录、发布、评论、点赞、收藏、私信或账户功能。</text>
     </view>
 
     <view class="about-section">
@@ -36,19 +36,19 @@
           <view class="status-dot status-dot--warning"></view>
           <text>暂时无法读取状态</text>
         </view>
-        <text class="status-help">帖子仍可能来自最近一次本地缓存。</text>
+        <text class="status-help">内容仍可能来自最近一次本地缓存。</text>
       </view>
     </view>
 
     <view class="about-section">
       <text class="section-eyebrow">PRIVACY</text>
       <text class="section-title">隐私与内容边界</text>
-      <text class="about-copy">小程序不要求微信登录，也不收集发帖或互动数据。同步侧只保存公开作者投影、公开帖子和媒体元数据；匿名帖不会展示作者身份、头像或认证标记，图片和视频只从受信任的云端镜像加载。</text>
+      <text class="about-copy">小程序不要求微信登录，也不收集发布或互动数据。同步侧只保存公开作者投影、公开内容和媒体元数据；匿名内容不会展示作者身份、头像或认证标记，图片和视频只从受信任的云端镜像加载。</text>
     </view>
 
     <view class="scope-note">
       <text class="scope-note__title">只读意味着什么</text>
-      <text class="scope-note__copy">你看到的是最近一次成功同步的公开内容快照。帖子状态或内容可能与母站存在短暂延迟，请以母站最新状态为准。</text>
+      <text class="scope-note__copy">你看到的是最近一次成功同步的公开内容快照。内容状态或正文可能与来源端存在短暂延迟，请以来源端最新状态为准。</text>
     </view>
   </view>
 </view>

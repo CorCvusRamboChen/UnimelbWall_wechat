@@ -48,7 +48,7 @@ Page({
     const postId = options && options.id ? decodeURIComponent(options.id) : "";
 
     if (!postId || postId.length > 128) {
-      this.setData({ loading: false, error: "帖子链接无效" });
+      this.setData({ loading: false, error: "内容链接无效" });
       return;
     }
 
@@ -80,8 +80,8 @@ Page({
       this.setData({
         post: null,
         error: error.code === "POST_NOT_FOUND"
-          ? "帖子不存在或已停止显示"
-          : (error.message || "帖子加载失败")
+          ? "内容不存在或已停止显示"
+          : (error.message || "内容加载失败")
       });
     } finally {
       this.setData({ loading: false });

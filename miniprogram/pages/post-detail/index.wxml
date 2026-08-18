@@ -1,5 +1,5 @@
 <view class="page-shell detail-page">
-  <view wx:if="{{loading && !post}}" class="detail-surface loading-card" aria-label="正在加载帖子详情">
+  <view wx:if="{{loading && !post}}" class="detail-surface loading-card" aria-label="正在加载内容详情">
     <view class="loading-author">
       <view class="loading-line loading-line--avatar"></view>
       <view class="loading-author__copy">
@@ -42,10 +42,10 @@
       <text wx:if="{{post.has_video}}" class="detail-flag detail-flag--video">包含视频</text>
     </view>
 
-    <text class="detail-title">{{post.title || '无标题帖子'}}</text>
+    <text class="detail-title">{{post.title || '无标题内容'}}</text>
     <text class="post-body" user-select="true">{{post.body}}</text>
 
-    <view wx:if="{{post.media.length}}" class="media-list" aria-label="帖子媒体">
+    <view wx:if="{{post.media.length}}" class="media-list" aria-label="内容媒体">
       <block wx:for="{{post.media}}" wx:key="id">
         <video
           wx:if="{{item.type === 'video'}}"
@@ -54,7 +54,7 @@
           controls
           show-center-play-btn
           object-fit="contain"
-          title="{{item.alt || '帖子视频'}}"
+          title="{{item.alt || '内容视频'}}"
         />
         <image
           wx:else
@@ -62,7 +62,7 @@
           src="{{item.file_id}}"
           mode="widthFix"
           lazy-load="true"
-          aria-label="{{item.alt || '帖子图片'}}"
+          aria-label="{{item.alt || '内容图片'}}"
           data-file-id="{{item.file_id}}"
           bindtap="previewImage"
         />
@@ -70,8 +70,8 @@
     </view>
 
     <view class="readonly-note">
-      <text class="readonly-note__title">原帖共有 {{post.comment_count || 0}} 条评论</text>
-      <text class="readonly-note__copy">当前版本仅提供公开帖子内容的只读浏览，暂不展示或参与互动。</text>
+      <text class="readonly-note__title">当前内容共有 {{post.comment_count || 0}} 条评论</text>
+      <text class="readonly-note__copy">当前版本仅提供公开内容的只读浏览，暂不展示或参与互动。</text>
     </view>
 
     <view wx:if="{{post.updated_at_text}}" class="updated-line">
